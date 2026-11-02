@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from . import ponte
-from .cliente_mcp import ClienteMCP, log
+from .cliente_mcp import ClienteMCP, log, novo_traceparent
 from .pedido import PedidoInvalido, parse_escolha, parse_reserva
 from .tasks import FAILED, INPUT_REQUIRED, Repositorio, novo_id
 
@@ -90,7 +90,8 @@ def criar_app(mcp_url: str, url_publica: str) -> Starlette:
                 await ponte.continuar(cliente, task, parse_escolha(texto))
                 return {"task": task.wire()}
         task = repo.criar()
-        task.traceparent = traceparent
+        # sem header, a Task ganha um trace proprio, reutilizado em todos os requests dela
+        task.traceparent = novo_traceparent(traceparent)
         task.historico.append(msg)
         async with task.trava:
             try:

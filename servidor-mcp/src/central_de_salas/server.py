@@ -7,8 +7,8 @@ SDK termina a resposta com `resultType: input_required`, `inputRequests` e um
 argumentos). Nada fica em memoria entre a pergunta e o retry.
 """
 
+import json
 import sys
-import time
 from typing import Annotated, Any, Literal
 
 from mcp.server.mcpserver import MCPServer
@@ -16,6 +16,7 @@ from mcp.server.mcpserver.exceptions import ResourceNotFoundError, ToolError
 from mcp.server.mcpserver.resolve import Elicit, Resolve
 from mcp.server.elicitation import AcceptedElicitation, ElicitationResult
 from mcp.server.request_state import RequestStateSecurity
+import uvicorn
 from pydantic import BaseModel, Field, create_model
 
 from . import config
@@ -65,6 +66,44 @@ def log(mensagem: str) -> None:
     print(mensagem, file=sys.stderr, flush=True)
 
 
+class RegistroDeRequests:
+    """Middleware ASGI: loga metodo, id e traceparent de TODO POST, inclusive os que o SDK
+    rejeita com 400 antes de chegar ao handler. O corpo e relido e reenviado intacto."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope["method"] != "POST":
+            return await self.app(scope, receive, send)
+        mensagens: list[dict[str, Any]] = []
+        corpo = b""
+        while True:
+            msg = await receive()
+            mensagens.append(msg)
+            if msg["type"] != "http.request":
+                break
+            corpo += msg.get("body", b"")
+            if not msg.get("more_body", False):
+                break
+        metodo, rid, traceparent = "?", "-", "-"
+        try:
+            dados = json.loads(corpo)
+            metodo = dados.get("method", "?")
+            rid = dados.get("id", "-")
+            meta = (dados.get("params") or {}).get("_meta") or {}
+            traceparent = meta.get("traceparent", "-")
+        except (ValueError, AttributeError):
+            pass
+        log(f"[mcp] metodo={metodo} id={rid} traceparent={traceparent}")
+        repetir = iter(mensagens)
+
+        async def receive_repetido() -> Any:
+            return next(repetir, None) or await receive()
+
+        await self.app(scope, receive_repetido, send)
+
+
 def _modelo_escolha(alternativas: list[str]) -> type[BaseModel]:
     """Formulario plano: um unico campo `sala` com as alternativas, na ordem."""
     tipo = Literal[tuple(alternativas)]  # type: ignore[valid-type]
@@ -80,14 +119,6 @@ def criar_servidor(dominio: Dominio, segredo: str) -> MCPServer:
         version="1.0.0",
         request_state_security=RequestStateSecurity(keys=[segredo], ttl=config.TTL_REQUEST_STATE_S),
     )
-
-    async def registrar_request(ctx: Any, call_next: Any) -> Any:
-        params = ctx.params or {}
-        meta = params.get("_meta") or {}
-        log(f"[mcp] metodo={ctx.method} id={ctx.request_id} traceparent={meta.get('traceparent', '-')}")
-        return await call_next(ctx)
-
-    mcp.middleware.insert(0, registrar_request)
 
     @mcp.resource(POLITICA_URI, mime_type="text/markdown", name="politica-de-uso")
     def politica() -> str:
@@ -167,4 +198,6 @@ def main() -> None:
     dominio = Dominio.carregar(config.dir_dados())
     mcp = criar_servidor(dominio, segredo)
     log(f"[mcp] central-de-salas em http://{config.host()}:{config.porta()}/mcp (politica {dominio.versao_politica})")
-    mcp.run("streamable-http", host=config.host(), port=config.porta(), stateless_http=True, json_response=True)
+    app = mcp.streamable_http_app(host=config.host(), stateless_http=True, json_response=True)
+    app.add_middleware(RegistroDeRequests)
+    uvicorn.run(app, host=config.host(), port=config.porta(), log_level="warning")

@@ -60,13 +60,14 @@ O `tools/list` e o resource `politica://uso` sao lidos uma vez, antes do primeir
   formato exato do wire e cobrado pelo validador; nao avaliei o `a2a-sdk` a fundo, so escolhi ter controle total da maquina de estados.
 - **Mensagens de erro de tool**: o SDK prefixa erros de execucao com `Error executing tool <nome>: `. O texto da regra vem inteiro depois do
   prefixo e e propagado ao pe da letra para a Task `FAILED` (status e historico). O validador compara por contencao.
-- **Trace**: o agente le `traceparent` do `SendMessage`, guarda por Task e usa o mesmo trace-id (span novo) em cada request MCP.
+- **Trace**: o agente le `traceparent` do `SendMessage`, guarda por Task e usa o mesmo trace-id (span novo) em cada request MCP. Sem o header, a Task ganha um trace-id proprio, igual em todos os requests dela.
+- **Log do servidor MCP**: um middleware ASGI (`RegistroDeRequests`, em `server.py`) registra no stderr metodo, id e `traceparent` de todo POST, inclusive os rejeitados com 400 antes do handler (`_meta` incompleto, `-32021`).
 - **Dados**: `dados/` e lido do repositorio, somente leitura; reservas novas ficam so em memoria (`res-0003`, `res-0004`, ...).
 
 ## Saida do validador
 
 ```
-trace-id desta execucao: b4922fb645d0c28f04f561f4aff13b01
+trace-id desta execucao: ee39b9e85d4d894e865a05f1a7b44b47
 procure esse valor no stderr do servidor MCP para conferir a propagacao do traceparent.
 
 PASS 01 tools/list traz as tres tools
