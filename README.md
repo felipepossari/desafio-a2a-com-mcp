@@ -40,7 +40,12 @@ Em `agente/src/agente/ponte.py`. A funcao `_aplicar_resultado` recebe o resultad
 `TASK_STATE_INPUT_REQUIRED` com a mensagem `alternativas: a, b`. Na continuacao `escolha=<id|recusar>`, `continuar()` le a Task
 por `taskId`, monta `inputResponses` com a **mesma chave**, devolve o `requestState` **byte a byte** (sem abrir) junto dos argumentos
 originais e chama `ClienteMCP.chamar_tool`, que gera um **id JSON-RPC novo** (`cliente_mcp.py`) e reaproveita o trace-id da Task.
-O `tools/list` e o resource `politica://uso` sao lidos uma vez, antes do primeiro `tools/call`. A versao da politica (1a linha do resource) fica em `ClienteMCP.versao_politica` e e ela, nao o campo `politica` do retorno da tool, que vai para o artifact (`ponte._aplicar_resultado`). Se a versao nao puder ser lida, a descoberta falha antes de qualquer `tools/call` e nenhuma reserva e criada.
+O `tools/list` e feito uma vez, antes do primeiro `tools/call`. O resource `politica://uso` e lido **a cada pedido novo**, antes do
+`tools/call` (`ClienteMCP.ler_versao_politica`, chamado por `ponte.iniciar`). A versao da 1a linha fica em `Task.versao_politica` e e ela,
+nao o campo `politica` do retorno da tool, que vai para o artifact (`ponte._aplicar_resultado`). A retomada de uma Task pausada usa a
+versao lida no inicio daquela Task. Se o servidor MCP for reiniciado com outra politica, o proximo pedido ja reflete a versao nova sem
+reiniciar o agente. Se a versao nao puder ser lida, a Task termina em `TASK_STATE_FAILED` antes de qualquer `tools/call`, e nenhuma
+reserva e criada.
 
 ## Decisoes tecnicas
 
@@ -67,7 +72,7 @@ O `tools/list` e o resource `politica://uso` sao lidos uma vez, antes do primeir
 ## Saida do validador
 
 ```
-trace-id desta execucao: c8ad627a9ca6409d0a8d07691877429b
+trace-id desta execucao: 7572470fe527eddceef8529c28d8d089
 procure esse valor no stderr do servidor MCP para conferir a propagacao do traceparent.
 
 PASS 01 tools/list traz as tres tools

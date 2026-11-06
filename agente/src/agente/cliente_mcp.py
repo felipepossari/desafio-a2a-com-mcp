@@ -60,7 +60,6 @@ class ClienteMCP:
         self._descoberto = False
         self._trava = asyncio.Lock()
         self.tools: dict[str, dict[str, Any]] = {}
-        self.versao_politica: str | None = None
 
     async def fechar(self) -> None:
         await self._http.aclose()
@@ -97,7 +96,7 @@ class ClienteMCP:
             raise ErroMCP(f"Resposta MCP invalida (HTTP {resp.status_code})") from None
 
     async def descobrir(self, traceparent: str | None) -> None:
-        """tools/list antes do primeiro tools/call, mais a politica de uso (resource)."""
+        """tools/list antes do primeiro tools/call (descoberta em runtime, sem lista fixa)."""
         async with self._trava:
             if self._descoberto:
                 return
@@ -105,13 +104,21 @@ class ClienteMCP:
             tools = {t["name"]: t for t in (resp.get("result") or {}).get("tools", [])}
             if TOOL_RESERVA not in tools:
                 raise ErroMCP(f"O servidor MCP nao oferece a tool {TOOL_RESERVA}")
-            resp = await self._post("resources/read", {"uri": POLITICA_URI}, POLITICA_URI, traceparent)
-            versao = extrair_versao_politica(resp)
-            if versao is None:
-                raise ErroMCP(f"Nao foi possivel ler a versao da politica de uso em {POLITICA_URI}")
-            self.versao_politica = versao
             self.tools = tools
             self._descoberto = True
+
+    async def ler_versao_politica(self, traceparent: str | None) -> str:
+        """Le o resource politica://uso agora (sem cache) e devolve a versao da 1a linha.
+
+        Lido a cada pedido para que o artifact reflita o que o resource responde no momento,
+        mesmo que o servidor MCP tenha sido reiniciado com outra politica.
+        """
+        await self.descobrir(traceparent)
+        resp = await self._post("resources/read", {"uri": POLITICA_URI}, POLITICA_URI, traceparent)
+        versao = extrair_versao_politica(resp)
+        if versao is None:
+            raise ErroMCP(f"Nao foi possivel ler a versao da politica de uso em {POLITICA_URI}")
+        return versao
 
     async def chamar_tool(
         self,

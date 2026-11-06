@@ -119,7 +119,7 @@ Cada tarefa tem um **critério de pronto** verificável. A ordem segue a "ordem 
 
 ### Fase 5: Agente como cliente MCP puro (sem A2A ainda)
 - **T5.1** Módulo cliente MCP (`httpx`): monta headers espelhados e `_meta`; id JSON-RPC incremental **por request**; expõe resultado bruto (`complete` | `input_required` | erro RPC).
-- **T5.2** Fluxo de descoberta: `tools/list` antes do primeiro `tools/call`; `resources/read politica://uso`; parse da versão na primeira linha.
+- **T5.2** Fluxo de descoberta: `tools/list` antes do primeiro `tools/call`; `resources/read politica://uso` a cada pedido novo (sem cache, guardado na Task); parse da versão na primeira linha.
 - **T5.3** Script de linha de comando de teste (descartável ou em `agente/scripts/`) que completa o ciclo de MRTR respondendo a mão. *Pronto:* log do servidor mostra `tools/list`, `tools/call` (id A), `tools/call` (id B != A) com `traceparent`.
 
 ### Fase 6: Agente como servidor A2A

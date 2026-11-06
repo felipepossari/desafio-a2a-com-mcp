@@ -35,6 +35,7 @@ class Task:
     chave_input: str | None = None  # chave de inputRequests atribuida pelo servidor MCP
     request_state: str | None = None  # opaco: guardar e ecoar
     alternativas: list[str] = field(default_factory=list)
+    versao_politica: str | None = None  # lida do resource politica://uso no inicio desta Task
 
     @property
     def terminal(self) -> bool:
