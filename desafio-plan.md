@@ -126,7 +126,7 @@ Cada tarefa tem um **critério de pronto** verificável. A ordem segue a "ordem 
 - **T6.1** Servidor HTTP na porta 7300 (default) com `GET /.well-known/agent-card.json` conforme `07-a2a-agent-card.json` (campo `supportedInterfaces[].protocolBinding = "JSONRPC"`, `protocolVersion = "1.0"`, URL do `/a2a`, skill `reservar-sala`, `streaming:false`, sem `securitySchemes` preenchido). URL do card parametrizável por env (host/porta).
 - **T6.2** `POST /a2a` JSON-RPC 2.0: `SendMessage`, `GetTask`; erros JSON-RPC para método desconhecido, params inválidos, Task inexistente, Task terminal.
 - **T6.3** Modelo de Task: `id`, `contextId` próprios, `status.state` + `status.message`, `history`, `artifacts`; transita `SUBMITTED -> WORKING -> {COMPLETED|FAILED|INPUT_REQUIRED}`; `GetTask` reflete estado corrente.
-- **T6.4** Sala livre -> `COMPLETED` com artifact `reserva` (conteúdo JSON: `reserva, sala, inicio, fim, responsavel, politica`; ver exemplo 10) e mensagem final de confirmação.
+- **T6.4** Sala livre -> `COMPLETED` com artifact `reserva` (conteúdo JSON: `reserva, sala, inicio, fim, responsavel, politica`, com `politica` = versão lida do resource, sobrescrevendo o valor da tool; ver exemplo 10) e mensagem final de confirmação.
 - **T6.5** `isError: true` da tool -> `FAILED` com o texto exato da tool na mensagem de status **e** no histórico.
 - **T6.6** `SendMessage` com `taskId` de Task terminal ou inexistente -> erro JSON-RPC.
 

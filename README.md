@@ -40,7 +40,7 @@ Em `agente/src/agente/ponte.py`. A funcao `_aplicar_resultado` recebe o resultad
 `TASK_STATE_INPUT_REQUIRED` com a mensagem `alternativas: a, b`. Na continuacao `escolha=<id|recusar>`, `continuar()` le a Task
 por `taskId`, monta `inputResponses` com a **mesma chave**, devolve o `requestState` **byte a byte** (sem abrir) junto dos argumentos
 originais e chama `ClienteMCP.chamar_tool`, que gera um **id JSON-RPC novo** (`cliente_mcp.py`) e reaproveita o trace-id da Task.
-O `tools/list` e o resource `politica://uso` sao lidos uma vez, antes do primeiro `tools/call`.
+O `tools/list` e o resource `politica://uso` sao lidos uma vez, antes do primeiro `tools/call`. A versao da politica (1a linha do resource) fica em `ClienteMCP.versao_politica` e e ela, nao o campo `politica` do retorno da tool, que vai para o artifact (`ponte._aplicar_resultado`). Se a versao nao puder ser lida, a descoberta falha antes de qualquer `tools/call` e nenhuma reserva e criada.
 
 ## Decisoes tecnicas
 
@@ -67,7 +67,7 @@ O `tools/list` e o resource `politica://uso` sao lidos uma vez, antes do primeir
 ## Saida do validador
 
 ```
-trace-id desta execucao: ee39b9e85d4d894e865a05f1a7b44b47
+trace-id desta execucao: c8ad627a9ca6409d0a8d07691877429b
 procure esse valor no stderr do servidor MCP para conferir a propagacao do traceparent.
 
 PASS 01 tools/list traz as tres tools

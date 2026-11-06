@@ -38,8 +38,12 @@ def _extrair_pergunta(resultado: dict[str, Any]) -> tuple[str, list[str]] | None
     return chave, list(alternativas)
 
 
-def _aplicar_resultado(task: Task, resposta: dict[str, Any], sala_vazia_ok: bool = False) -> None:
-    """Traduz um envelope JSON-RPC do MCP para o estado da Task."""
+def _aplicar_resultado(task: Task, resposta: dict[str, Any], versao_politica: str | None) -> None:
+    """Traduz um envelope JSON-RPC do MCP para o estado da Task.
+
+    `versao_politica` e a versao lida do resource `politica://uso` na descoberta: ela, e nao o
+    campo `politica` do structuredContent da tool, e o que vai para o artifact.
+    """
     erro = resposta.get("error")
     if erro:
         if erro.get("code") == -32602:
@@ -68,7 +72,8 @@ def _aplicar_resultado(task: Task, resposta: dict[str, Any], sala_vazia_ok: bool
     if dados.get("reservado") is False:
         task.definir(CANCELED, "Reserva recusada: nada foi reservado.")
         return
-    reserva = {k: dados.get(k) for k in ("reserva", "sala", "inicio", "fim", "responsavel", "politica")}
+    reserva = {k: dados.get(k) for k in ("reserva", "sala", "inicio", "fim", "responsavel")}
+    reserva["politica"] = versao_politica  # lida do resource, sobrescreve o que a tool informar
     task.artifacts.append(
         {"artifactId": novo_id("art"), "name": "reserva", "parts": [{"text": json.dumps(reserva)}]}
     )
@@ -83,7 +88,7 @@ async def iniciar(cliente: ClienteMCP, task: Task, argumentos: dict[str, str]) -
     except ErroMCP as e:
         task.definir(FAILED, str(e))
         return
-    _aplicar_resultado(task, resposta)
+    _aplicar_resultado(task, resposta, cliente.versao_politica)
 
 
 async def continuar(cliente: ClienteMCP, task: Task, escolha: str | None) -> None:
@@ -105,4 +110,4 @@ async def continuar(cliente: ClienteMCP, task: Task, escolha: str | None) -> Non
     except ErroMCP as e:
         task.definir(FAILED, str(e))
         return
-    _aplicar_resultado(task, resposta)
+    _aplicar_resultado(task, resposta, cliente.versao_politica)

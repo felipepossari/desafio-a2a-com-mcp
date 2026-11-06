@@ -41,6 +41,17 @@ def novo_traceparent(traceparent: str | None) -> str:
     return f"00-{trace_id or secrets.token_hex(16)}-{secrets.token_hex(8)}-01"
 
 
+def extrair_versao_politica(resposta: dict[str, Any]) -> str | None:
+    """Versao declarada na primeira linha (`versao: <v>`) do resource, ou None se ilegivel."""
+    if resposta.get("error"):
+        return None
+    contents = (resposta.get("result") or {}).get("contents") or [{}]
+    linhas = (contents[0].get("text") or "").splitlines()
+    chave, sep, valor = (linhas[0] if linhas else "").partition(":")
+    valor = valor.strip()
+    return valor if sep and chave.strip() == "versao" and valor else None
+
+
 class ClienteMCP:
     def __init__(self, url: str) -> None:
         self._url = url
@@ -95,9 +106,10 @@ class ClienteMCP:
             if TOOL_RESERVA not in tools:
                 raise ErroMCP(f"O servidor MCP nao oferece a tool {TOOL_RESERVA}")
             resp = await self._post("resources/read", {"uri": POLITICA_URI}, POLITICA_URI, traceparent)
-            contents = (resp.get("result") or {}).get("contents") or [{}]
-            primeira = (contents[0].get("text") or "").splitlines()[:1]
-            self.versao_politica = primeira[0].split(":", 1)[1].strip() if primeira and ":" in primeira[0] else None
+            versao = extrair_versao_politica(resp)
+            if versao is None:
+                raise ErroMCP(f"Nao foi possivel ler a versao da politica de uso em {POLITICA_URI}")
+            self.versao_politica = versao
             self.tools = tools
             self._descoberto = True
 
